@@ -51,5 +51,12 @@ Using < rather than <= means a slot ending at exactly 18:00 doesn’t clash with
 - Because it’s a different question. free_time.py answers “when am I available?”, which is a fact about your week. The 4-hour limit is about “how much should I actually study?”, which is a planning decision that belongs to the scheduler (Day 7). Keeping them separate means each file does one job. You can test them separately and change one without breaking the other: for example, a lighter limit in exam week doesn’t change when you’re free. Programmers call this separation of concerns, and it’s a good phrase to use in interviews.
 
 
-## Next
-- Day 4: rate my PDFs, extract_text(), store.py
+## Day 4 – Sun 8 Nov
+- pdf_text.py: extracts text, flags scanned PDFs, survives broken files
+- store.py: saves items to data/store.json
+
+**Why rate the PDFs myself before using the AI?**
+
+**Why does add_item check the filename first?**
+
+**Why are difficulty and est_hours None for now?**
