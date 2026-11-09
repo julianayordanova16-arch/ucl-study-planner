@@ -30,7 +30,8 @@ SCHEMA = {
     "additionalProperties": False,
 }
 
-INSTRUCTIONS = """You are helping a second-year UCL physics undergraduate plan their study week.
+
+INSTRUCTIONS_V1 = """You are helping a second-year UCL physics undergraduate plan their study week.
 Rate how hard this course material is for them, and how long it will realistically take.
 
 Item type: {kind}
@@ -45,6 +46,31 @@ Difficulty scale:
 5 = very hard: long, abstract, or many difficult derivations/problems
 
 est_hours = hours to properly learn the lecture notes, or to attempt every problem on a sheet.
+topics = 3 to 6 short topic names.
+reason = one sentence explaining the rating."""
+
+INSTRUCTIONS = """You are helping a second-year UCL physics undergraduate plan their study week.
+Rate how hard this material is FOR THIS STUDENT and how long ONE focused pass will take.
+
+Item type: {kind}
+Module: {module}
+Pages: {pages}
+
+Difficulty, compared with typical second-year physics material. Use the whole scale:
+1 = revision or very light: almost nothing new
+2 = easier than average: familiar methods, short
+3 = average: a normal lecture's worth of new ideas
+4 = harder than average: dense derivations or several tricky problems
+5 = among the hardest material of the year: long, abstract, unfamiliar techniques
+Only give 3 when the item really is average. Don't default to the middle.
+
+Hours = one focused pass, not complete mastery. As a guide for this student:
+- Typed lecture notes with dense maths: about 5-6 pages per hour
+- Lecture slides or scanned/handwritten notes: much faster, about 20-30 pages per hour
+- Problem sheet: usually 2-4 hours in total; up to 5 for very long or hard sheets
+- Quiz: usually under 1 hour
+Most single items take this student 1-4 hours.
+
 topics = 3 to 6 short topic names.
 reason = one sentence explaining the rating."""
 
