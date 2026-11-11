@@ -1,4 +1,5 @@
 """UCL Study Planner: upload course material and get it scored."""
+import os
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
@@ -12,14 +13,21 @@ from free_time import free_slots
 from scheduler import merge_blocks, plan_week
 from scoring import score_item
 from store import KINDS, add_item, list_items, update_item
+from demo import DEMO_MODULES, demo_items, demo_timetable
 
 UPLOAD_DIR = Path("data/uploads")
+# Public demo: no real timetable on this machine, or forced with DEMO_MODE=1
+DEMO = os.getenv("DEMO_MODE") == "1" or not Path("data/timetable.ics").exists()
 
 st.set_page_config(page_title="UCL Study Planner", layout="wide")
 
 
 @st.cache_data(ttl=3600)
 def module_list() -> list[str]:
+    """Module names from the timetable (remembered for an hour)."""
+    if DEMO:
+        return DEMO_MODULES
+    today = date.today()
     """Module names from the timetable (remembered for an hour)."""
     today = date.today()
     timetable = load_timetable(today - timedelta(days=60), today + timedelta(days=60),
@@ -29,6 +37,9 @@ def module_list() -> list[str]:
 
 st.title("UCL Study Planner")
 st.caption("Drop in course material, get a difficulty score, and plan your week.")
+if DEMO:
+    st.info("**Demo mode:** made-up modules, timetable and scores. "
+            "Uploading and AI scoring are switched off in the public demo.")
 
 # ---------- 1. Upload ----------
 st.header("1. Add course material")
@@ -47,7 +58,9 @@ with st.form("upload", clear_on_submit=True):
 
     submitted = st.form_submit_button("Add and score")
 
-if submitted:
+if submitted and DEMO:
+    st.warning("Uploads are switched off in the demo. Run it locally to use your own files.")
+elif submitted:
     if not files:
         st.warning("Choose at least one PDF first.")
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -75,7 +88,7 @@ if submitted:
 
 # ---------- 2. Items ----------
 st.header("2. Your items")
-items = list_items()
+items = demo_items() if DEMO else list_items()
 
 if not items:
     st.write("Nothing added yet.")
@@ -90,18 +103,20 @@ else:
 # ---------- 3. Plan ----------
 st.header("3. Your study plan (next 7 days)")
 
-if st.sidebar.button("Refresh timetable from UCL"):
-    with st.spinner("Downloading your latest timetable…"):
-        load_timetable(date.today(), date.today() + timedelta(days=1), use_local=False)
-    st.cache_data.clear()
-    st.sidebar.success("Timetable updated")
+if not DEMO:
+    if st.sidebar.button("Refresh timetable from UCL"):
+        with st.spinner("Downloading your latest timetable…"):
+            load_timetable(date.today(), date.today() + timedelta(days=1), use_local=False)
+        st.cache_data.clear()
+        st.sidebar.success("Timetable updated")
 
 if not items:
     st.write("Add some course material first.")
 else:
-    prefs = load_prefs()
+    prefs = load_prefs("prefs.example.yaml" if DEMO else "prefs.yaml")
     today = date.today()
-    timetable = load_timetable(today, today + timedelta(days=7), use_local=True)
+    timetable = demo_timetable(today) if DEMO else load_timetable(
+        today, today + timedelta(days=7), use_local=True)
     slots = free_slots(today, timetable, prefs)
     plan, unplaced = plan_week(items, slots, prefs)
 
