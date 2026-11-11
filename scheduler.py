@@ -76,11 +76,21 @@ def plan_week(items: list[dict], slots: pd.DataFrame, prefs: dict):
     plan_df = pd.DataFrame(plan, columns=["start", "end", "task", "file", "difficulty"])
     return plan_df.sort_values("start").reset_index(drop=True), unplaced
 
+def merge_blocks(plan: pd.DataFrame) -> pd.DataFrame:
+    """Join back-to-back hours of the same item into one longer block."""
+    merged = []
+    for _, row in plan.sort_values("start").iterrows():
+        last = merged[-1] if merged else None
+        if last and last["file"] == row["file"] and last["end"] == row["start"]:
+            last["end"] = row["end"]          # extend the previous block
+        else:
+            merged.append(row.to_dict())      # start a new block
+    return pd.DataFrame(merged, columns=plan.columns)
 
 if __name__ == "__main__":
     prefs = load_prefs()
     today = date.today()
-    week_start = today - timedelta(days=today.weekday())   # this Monday
+    week_start = today   # rolling: the next 7 days from today
     week_end = week_start + timedelta(days=7)
 
     timetable = load_timetable(week_start, week_end, use_local=True)

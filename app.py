@@ -6,7 +6,10 @@ import pandas as pd
 import streamlit as st
 from pypdf.errors import PdfReadError
 
-from calendar_io import LONDON, get_modules, load_timetable
+from calendar_io import LONDON, get_modules, load_prefs, load_timetable
+from export_ics import plan_to_ics
+from free_time import free_slots
+from scheduler import merge_blocks, plan_week
 from scoring import score_item
 from store import KINDS, add_item, list_items, update_item
 
@@ -77,9 +80,58 @@ items = list_items()
 if not items:
     st.write("Nothing added yet.")
 else:
-    table = pd.DataFrame(items)[["module", "kind", "filename", "difficulty", "est_hours", "due"]]
+    table = pd.DataFrame(items)[["module", "kind", "filename", "difficulty", "est_hours", "due", "reason"]]
     table["due"] = (pd.to_datetime(table["due"], utc=True)
                     .dt.tz_convert("Europe/London")
                     .dt.strftime("%a %d %b %H:%M"))
     table = table.sort_values("difficulty", ascending=False)
     st.dataframe(table, hide_index=True)
+
+# ---------- 3. Plan ----------
+st.header("3. Your study plan (next 7 days)")
+
+if st.sidebar.button("Refresh timetable from UCL"):
+    with st.spinner("Downloading your latest timetable…"):
+        load_timetable(date.today(), date.today() + timedelta(days=1), use_local=False)
+    st.cache_data.clear()
+    st.sidebar.success("Timetable updated")
+
+if not items:
+    st.write("Add some course material first.")
+else:
+    prefs = load_prefs()
+    today = date.today()
+    timetable = load_timetable(today, today + timedelta(days=7), use_local=True)
+    slots = free_slots(today, timetable, prefs)
+    plan, unplaced = plan_week(items, slots, prefs)
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Study hours planned", len(plan))
+    col2.metric("Free hours available", len(slots))
+    col3.metric("Items that don't fit", len(unplaced))
+
+    for u in unplaced:
+        st.warning(f"**{u['task']}** ({u['file']}): {u['missing_hours']}h doesn't fit "
+                   f"before it's due ({u['due']:%a %d %b %H:%M}). Consider dropping "
+                   f"something, or raising your daily maximum in prefs.yaml.")
+
+    if plan.empty:
+        st.info("Nothing to plan right now.")
+    else:
+        merged = merge_blocks(plan)
+        for day, group in merged.groupby(merged["start"].dt.date):
+            st.subheader(f"{day:%A %d %b}")
+            day_table = pd.DataFrame({
+                "time": group["start"].dt.strftime("%H:%M") + "–" + group["end"].dt.strftime("%H:%M"),
+                "study": group["task"],
+                "file": group["file"],
+                "difficulty": group["difficulty"],
+            })
+            st.dataframe(day_table, hide_index=True)
+
+        st.download_button(
+            "Download plan for your calendar (.ics)",
+            data=plan_to_ics(plan),
+            file_name="study_plan.ics",
+            mime="text/calendar",
+        )
